@@ -3,8 +3,8 @@ import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync } from '
 import { join, extname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { ACTION_LABELS, AUTO_TASK_TITLES, BASIS, FOLLOW_UPS, LABELS, PRIORITIES, SEGMENTS, STAGES, TOUCH_STAGES, addDays, nextStages, clean, contactKey, metrics, norm, orgKey, parseCsv, stageFrom, validateContact, validateOrg, isoDate } from './lib/outreach.mjs';
-import { auth, checkImportSchema, claims, insertNew, loadAll, saveChanges, supabaseConfig } from './lib/supabase.mjs';
+import { ACTION_LABELS, AUTO_TASK_TITLES, BASIS, FOLLOW_UPS, LABELS, PRIORITIES, SEGMENTS, STAGES, TOUCH_STAGES, addDays, nextStages, clean, contactKey, metrics, norm, orgKey, parseCsv, stageFrom, validEmail, validateContact, validateOrg, isoDate } from './lib/outreach.mjs';
+import { access, auth, checkImportSchema, claims, insertNew, loadAll, saveChanges, supabaseConfig } from './lib/supabase.mjs';
 import { applyUpdates, planImport, sourcesFromFiles, summarize } from './lib/lead-import.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
@@ -112,6 +112,13 @@ async function session(req, res) {
   try { const s = await auth.refresh(cfg, c.ss_rt); setSession(res, s); return sessionFrom(s.access_token); }
   catch (e) { if (e.status === 502) throw e; clearSession(res); fail('Session expired. Sign in again', 401); }
 }
+// A signed-in account without access records its request (with its name) and is told where it stands. It gets no session.
+async function refuseUntilApproved(s) {
+  let status = null;
+  try { await access.request(cfg, s.access_token, { id: s.user.id, email: s.user.email, name: s.user.user_metadata?.name }); status = await access.mine(cfg, s.access_token, s.user.id); } catch {}
+  await auth.signOut(cfg, s.access_token);
+  fail(status === 'denied' ? 'Access to Outreach was declined for this account. Ask an admin if this is a mistake.' : 'Your account is waiting for an admin to approve it. You can sign in once it is approved.', 403);
+}
 async function authRoute(req, res, url) {
   if (url.pathname === '/api/session' && req.method === 'GET') {
     if (!cfg) return send(res, 200, { mode: 'local', user: null });
@@ -122,9 +129,20 @@ async function authRoute(req, res, url) {
   if (url.pathname === '/api/login' && req.method === 'POST') {
     const raw = await body(req), email = clean(raw.email), password = String(raw.password ?? '');
     if (!email || !password) fail('Email and password are required');
-    let s; try { s = await auth.signIn(cfg, email, password); } catch (e) { if (e.status === 502) throw e; fail('Incorrect email or password', 401); }
-    if (!(await auth.isAdmin(cfg, s.access_token))) { await auth.signOut(cfg, s.access_token); fail('Signed in, but this account is not an outreach admin yet', 403); }
+    let s; try { s = await auth.signIn(cfg, email, password); } catch (e) { if (e.status === 502) throw e; fail(/not confirmed/i.test(e.message) ? 'Confirm your email first: open the link in the email from Supabase, then sign in.' : 'Incorrect email or password', 401); }
+    if (!(await auth.isAdmin(cfg, s.access_token))) await refuseUntilApproved(s);
     cache = null; setSession(res, s); return send(res, 200, { user: { email: s.user.email } });
+  }
+  // Anyone can create an account; it sees nothing until an admin approves it on the Team access page.
+  if (url.pathname === '/api/signup' && req.method === 'POST') {
+    const raw = await body(req), name = clean(raw.name), email = clean(raw.email).toLowerCase(), password = String(raw.password ?? '');
+    if (!name) fail('Enter your name');
+    if (!validEmail(email)) fail('Enter a valid email');
+    if (password.length < 8) fail('Use a password of at least 8 characters');
+    let r; try { r = await auth.signUp(cfg, email, password, name); } catch (e) { if (e.status === 502) throw e; fail(/registered|exists/i.test(e.message) ? 'An account with this email already exists. Sign in instead.' : e.message); }
+    if (!r?.access_token) return send(res, 200, { status: 'confirm_email' });
+    try { await access.request(cfg, r.access_token, { id: r.user.id, email, name }); } catch {}
+    await auth.signOut(cfg, r.access_token); return send(res, 200, { status: 'pending' });
   }
   if (url.pathname === '/api/logout' && req.method === 'POST') {
     const at = cookies(req).ss_at; if (at) await auth.signOut(cfg, at);
@@ -141,7 +159,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${host}:${port}`);
     if (!url.pathname.startsWith('/api/')) return serveStatic(req, res);
     if (req.method !== 'GET' && req.headers.origin && req.headers.origin !== `http://${host}:${port}`) fail('Invalid origin', 403);
-    if (['/api/session', '/api/login', '/api/logout'].includes(url.pathname)) return await authRoute(req, res, url);
+    if (['/api/session', '/api/login', '/api/signup', '/api/logout'].includes(url.pathname)) return await authRoute(req, res, url);
     await exclusive(async () => {
       if (cfg) {
         ctx = await session(req, res);
@@ -155,6 +173,12 @@ const server = http.createServer(async (req, res) => {
 async function route(req, res, url) {
   if (url.pathname === '/api/state' && req.method === 'GET') return send(res, 200, { ...db, metrics: metrics(db), stages: STAGES, segments: SEGMENTS, bases: BASIS, priorities: PRIORITIES, labels: LABELS, flow });
   if (url.pathname === '/api/playbook' && req.method === 'GET') return send(res, 200, playbook);
+  if (url.pathname === '/api/team' && req.method === 'GET') { if (!cfg) fail('Team access needs Supabase', 404); return send(res, 200, { me: ctx.user.id, accounts: await access.accounts(cfg, ctx.token) }); }
+  if (/^\/api\/team\/[^/]+$/.test(url.pathname) && req.method === 'POST') {
+    if (!cfg) fail('Team access needs Supabase', 404);
+    const target = url.pathname.split('/')[3], approve = (await body(req)).approve === true;
+    await access.decide(cfg, ctx.token, target, approve); return send(res, 200, { ok: true });
+  }
   if (url.pathname === '/api/orgs' && req.method === 'POST') { const org = createOrg(await body(req)); await save(); return send(res, 201, org); }
   if (/^\/api\/orgs\/[^/]+\/stage$/.test(url.pathname) && req.method === 'POST') {
     const org = orgOrFail(url.pathname.split('/')[3]), stage = stageFrom((await body(req)).stage);

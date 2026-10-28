@@ -35,12 +35,14 @@ Open `http://127.0.0.1:4173`. The server binds only to loopback, so it is reacha
 
 The Supabase project is dedicated to Outreach, so the inquiry/design/checkout/order fields stay manual text references rather than foreign keys.
 
-1. **Schema**: in the Supabase dashboard, open SQL Editor and run, in order, `supabase/outreach_schema.sql`, `supabase/002_lead_import.sql`, and `supabase/003_purchase_stages.sql`. All are safe to re-run.
+1. **Schema**: in the Supabase dashboard, open SQL Editor and run, in order, `supabase/outreach_schema.sql`, `supabase/002_lead_import.sql`, `supabase/003_purchase_stages.sql`, and `supabase/004_team_access.sql`. All are safe to re-run.
 2. **Admin user**: under Authentication → Users, choose *Add user → Create new user*, enter an email and password, and tick *Auto Confirm User*. Then run in the SQL Editor:
    ```sql
    insert into public.outreach_admins (user_id) select id from auth.users where email = 'you@example.com' on conflict do nothing;
    ```
    Signed-in users who are not in `outreach_admins` are refused at sign-in, and RLS hides all outreach rows from them.
+
+   After the first admin exists, teammates use **Create an account** on the sign-in screen. New accounts see nothing until an admin approves them on **Team access** (which also removes access). If Supabase's *Confirm email* setting is on (Authentication → Sign In / Providers → Email), they confirm their email first. Set Authentication → URL Configuration → Site URL to `http://127.0.0.1:4173` so the confirmation link lands on the app.
 3. **Keys**: copy `.env.example` to `.env` and fill in `SUPABASE_URL` and the **publishable** key (the legacy name is "anon"). Never use the secret/`service_role` key. The app does not need it, and `.env` is Git ignored.
 4. Restart `npm start`. The console says which mode it is in.
 

@@ -19,6 +19,7 @@
         <button class="nav-item" data-view="tasks"><span class="nav-icon">◷</span> Follow-ups</button>
         <button class="nav-item" data-view="research"><span class="nav-icon">✧</span> Research review <span id="nav-pending" class="nav-count hidden"></span></button>
         <button class="nav-item" data-view="playbook"><span class="nav-icon">❏</span> Playbook</button>
+        <button id="nav-team" class="nav-item hidden" data-view="team"><span class="nav-icon">⚇</span> Team access <span id="nav-team-count" class="nav-count hidden"></span></button>
       </nav>
       <div class="side-section-label side-section-gap">LEAD LISTS</div>
       <nav aria-label="Lead lists">
@@ -41,10 +42,31 @@
       <div class="eyebrow">ADMIN / OUTREACH</div>
       <h1 id="login-title">Sign in</h1>
       <label class="full-label">Email<input name="email" type="email" autocomplete="username" required></label>
-      <label class="full-label">Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <label class="full-label">Password<span class="password-field"><input name="password" type="password" autocomplete="current-password" required><button type="button" class="reveal" data-reveal aria-label="Show password" aria-pressed="false">Show</button></span></label>
       <div class="form-error" role="alert"></div>
       <button class="button primary" type="submit">Sign in</button>
+      <p class="login-switch">New to the team? <button type="button" class="link-button" data-auth-view="signup">Create an account</button></p>
     </form>
+    <form id="signup-form" class="login-card hidden">
+      <b class="wordmark">SkateSkins<sup>®</sup></b>
+      <div class="eyebrow">ADMIN / OUTREACH</div>
+      <h1>Create an account</h1>
+      <p class="form-help">An admin approves new accounts before they can see any leads.</p>
+      <label class="full-label">Your name<input name="name" autocomplete="name" required></label>
+      <label class="full-label">Email<input name="email" type="email" autocomplete="username" required></label>
+      <label class="full-label">Password<span class="password-field"><input name="password" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="reveal" data-reveal aria-label="Show password" aria-pressed="false">Show</button></span></label>
+      <label class="full-label">Confirm password<span class="password-field"><input name="confirm" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="reveal" data-reveal aria-label="Show password" aria-pressed="false">Show</button></span></label>
+      <div class="form-error" role="alert"></div>
+      <button class="button primary" type="submit">Create account</button>
+      <p class="login-switch">Already have an account? <button type="button" class="link-button" data-auth-view="login">Sign in</button></p>
+    </form>
+    <div id="signup-done" class="login-card hidden" role="status">
+      <b class="wordmark">SkateSkins<sup>®</sup></b>
+      <div class="eyebrow">ADMIN / OUTREACH</div>
+      <h1>Account created</h1>
+      <p id="signup-done-text"></p>
+      <button type="button" class="button primary" data-auth-view="login">Back to sign in</button>
+    </div>
   </section>
   <dialog id="modal"><div id="modal-content"></div></dialog>
   <div id="toast" role="status" aria-live="polite"></div>

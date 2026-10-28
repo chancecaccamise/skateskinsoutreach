@@ -15,17 +15,33 @@ const jwt = claims => `x.${Buffer.from(JSON.stringify(claims)).toString('base64u
 // Minimal stand-in for Supabase Auth + PostgREST: one admin, one non-admin, rows kept in memory.
 function fakeSupabase() {
   const users = { 'admin@example.com': { id: '00000000-0000-4000-8000-000000000001', admin: true }, 'guest@example.com': { id: '00000000-0000-4000-8000-000000000002', admin: false } };
-  const rows = Object.fromEntries(Object.values(tables).map(t => [t.table, []]));
+  const rows = { ...Object.fromEntries(Object.values(tables).map(t => [t.table, []])), outreach_access_requests: [] };
   const session = email => ({ access_token: jwt({ sub: users[email].id, email, exp: Math.floor(Date.now() / 1000) + 3600 }), refresh_token: `rt-${email}`, expires_in: 3600, user: { id: users[email].id, email } });
   const server = http.createServer(async (req, res) => {
     let text = ''; for await (const chunk of req) text += chunk;
     const body = text ? JSON.parse(text) : null, url = new URL(req.url, 'http://x'), reply = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(data === undefined ? '' : JSON.stringify(data)); };
     if (req.headers.apikey !== 'test-key') return reply(401, { message: 'No API key' });
     const token = req.headers.authorization?.replace('Bearer ', ''), sub = token?.split('.')[1] && JSON.parse(Buffer.from(token.split('.')[1], 'base64url')).sub, user = Object.values(users).find(u => u.id === sub);
-    if (url.pathname === '/auth/v1/token' && url.searchParams.get('grant_type') === 'password') return users[body.email] && body.password === 'pw' ? reply(200, session(body.email)) : reply(400, { error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
+    if (url.pathname === '/auth/v1/token' && url.searchParams.get('grant_type') === 'password') return users[body.email] && body.password === (users[body.email].password || 'pw') ? reply(200, session(body.email)) : reply(400, { error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
+    if (url.pathname === '/auth/v1/signup') { if (users[body.email]) return reply(422, { msg: 'User already registered' }); users[body.email] = { id: crypto.randomUUID(), admin: false, password: body.password, name: body.data?.name, created: new Date().toISOString() }; return reply(200, session(body.email)); }
     if (url.pathname === '/auth/v1/logout') return reply(204);
     if (!user) return reply(401, { message: 'JWT required' });
     if (url.pathname === '/rest/v1/rpc/outreach_is_admin') return reply(200, user.admin);
+    // Team access: own-row RLS on requests, admin-only account list and decisions (mirrors supabase/004_team_access.sql).
+    const requests = rows.outreach_access_requests;
+    if (url.pathname === '/rest/v1/rpc/outreach_accounts') return reply(200, user.admin ? Object.entries(users).map(([email, u]) => { const r = requests.find(x => x.user_id === u.id); return { user_id: u.id, email, name: r?.name || u.name || null, created_at: u.created || '2026-10-01T00:00:00Z', confirmed: true, is_admin: u.admin, status: r?.status || 'pending', decided_at: r?.decided_at || null }; }) : []);
+    if (url.pathname === '/rest/v1/rpc/outreach_decide_access') {
+      if (!user.admin) return reply(400, { code: '42501', message: 'Only outreach admins can change access' });
+      if (!body.approve && body.target === user.id) return reply(400, { code: '22023', message: 'You cannot remove your own access' });
+      const target = Object.entries(users).find(([, u]) => u.id === body.target); target[1].admin = body.approve;
+      const r = requests.find(x => x.user_id === body.target) || (requests.push({ user_id: body.target, email: target[0] }), requests.at(-1)); r.status = body.approve ? 'approved' : 'denied'; r.decided_at = new Date().toISOString();
+      return reply(204);
+    }
+    if (url.pathname === '/rest/v1/outreach_access_requests') {
+      if (req.method === 'GET') return reply(200, requests.filter(r => user.admin || r.user_id === user.id).filter(r => [...url.searchParams].every(([k, v]) => !v.startsWith('eq.') || r[k] === v.slice(3))));
+      if (body.user_id !== user.id) return reply(403, { code: '42501', message: 'RLS' });
+      if (!requests.some(r => r.user_id === body.user_id)) requests.push({ ...body, status: 'pending' }); return reply(201);
+    }
     const table = rows[url.pathname.replace('/rest/v1/', '')]; if (!table) return reply(404, { message: 'Unknown table' });
     if (!user.admin) return reply(req.method === 'GET' ? 200 : 403, req.method === 'GET' ? [] : { code: '42501', message: 'RLS' });
     if (req.method === 'GET') { const offset = Number(url.searchParams.get('offset')), limit = Number(url.searchParams.get('limit')); return reply(200, table.slice(offset, offset + limit)); }
@@ -107,4 +123,40 @@ test('the import command signs in, inserts new rows in batches, and skips them o
     const again = await run('--write');
     assert.match(again.out, /Nothing new to import/); assert.equal(fake.rows.outreach_organizations.length, 1);
   } finally { fake.server.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('anyone can sign up, but sees nothing until an admin approves them on Team access', async () => {
+  const fake = fakeSupabase(); await new Promise(r => fake.server.listen(0, '127.0.0.1', r));
+  const port = await freePort();
+  const child = spawn(process.execPath, ['server.mjs'], { cwd: new URL('..', import.meta.url), env: { ...process.env, PORT: String(port), SUPABASE_URL: `http://127.0.0.1:${fake.server.address().port}`, SUPABASE_PUBLISHABLE_KEY: 'test-key', SUPABASE_ANON_KEY: '' }, stdio: 'ignore' });
+  const base = `http://127.0.0.1:${port}`, jars = { admin: '', newbie: '' };
+  const as = who => async (path, method = 'GET', data) => {
+    const res = await fetch(`${base}/api/${path}`, { method, headers: { 'Content-Type': 'application/json', cookie: jars[who] }, body: data === undefined ? undefined : JSON.stringify(data) });
+    const set = res.headers.getSetCookie().map(c => c.split(';')[0]); if (set.length) jars[who] = set.join('; ');
+    return { status: res.status, body: await res.json() };
+  };
+  const admin = as('admin'), newbie = as('newbie');
+  try {
+    await waitFor(base);
+    assert.equal((await newbie('signup', 'POST', { name: 'Sam Lee', email: 'sam@example.com', password: 'short' })).status, 400);
+    const signedUp = await newbie('signup', 'POST', { name: 'Sam Lee', email: 'sam@example.com', password: 'longenough1' });
+    assert.deepEqual(signedUp.body, { status: 'pending' });
+    assert.equal((await newbie('state')).status, 401, 'sign-up does not sign you in');
+    assert.equal((await newbie('signup', 'POST', { name: 'Sam', email: 'sam@example.com', password: 'longenough1' })).body.error, 'An account with this email already exists. Sign in instead.');
+    const waiting = await newbie('login', 'POST', { email: 'sam@example.com', password: 'longenough1' });
+    assert.equal(waiting.status, 403); assert.match(waiting.body.error, /waiting for an admin/);
+
+    assert.equal((await admin('login', 'POST', { email: 'admin@example.com', password: 'pw' })).status, 200);
+    const team = (await admin('team')).body, sam = team.accounts.find(a => a.email === 'sam@example.com');
+    assert.equal(sam.name, 'Sam Lee'); assert.equal(sam.is_admin, false); assert.equal(sam.status, 'pending');
+    assert.equal((await admin(`team/${team.me}`, 'POST', { approve: false })).status, 400, 'admins cannot remove themselves');
+    await admin(`team/${sam.user_id}`, 'POST', { approve: true });
+    assert.equal((await newbie('login', 'POST', { email: 'sam@example.com', password: 'longenough1' })).status, 200);
+    assert.equal((await newbie('state')).status, 200);
+
+    await admin(`team/${sam.user_id}`, 'POST', { approve: false });
+    await newbie('logout', 'POST', {});
+    const removed = await newbie('login', 'POST', { email: 'sam@example.com', password: 'longenough1' });
+    assert.equal(removed.status, 403); assert.match(removed.body.error, /declined/);
+  } finally { child.kill(); fake.server.close(); }
 });

@@ -7,7 +7,7 @@ const dateLabel = s => s ? new Date(`${s.slice(0, 10)}T12:00:00`).toLocaleDateSt
 const dollars = n => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0);
 const PAGE = 100;
 const blankFilter = () => ({ search: '', segment: '', category: '', stage: '', priority: '', zone: '', country: '', owner: '', suppression: '', reach: '', sort: 'updated' });
-let state = null, view = 'dashboard', selected = null, playbook = null, limit = PAGE, filter = blankFilter(), listKey = null, listTab = '', back = null;
+let team = null, state = null, view = 'dashboard', selected = null, playbook = null, limit = PAGE, filter = blankFilter(), listKey = null, listTab = '', back = null;
 const zoneTab = n => [String(n), o => o.zone?.startsWith(`${n} `)];
 // One page per source list. Tabs mirror the source workbook's tabs (prospects) or the plan's target zones (venues).
 // A venue merged into a prospect record appears on both pages; its notes carry the venue id.
@@ -44,7 +44,24 @@ function buildIndex() {
   const lists = Object.fromEntries(Object.entries(LISTS).map(([key, l]) => [key, state.orgs.filter(l.match).length]));
   index = { orgs: new Map(state.orgs.map(o => [o.id, o])), contacts, haystack, stages, lists, options: { category: distinct('category'), zone: distinct('zone'), country: distinct('country'), owner: distinct('owner') } };
 }
-function showLogin() { $('#modal').open && $('#modal').close(); $('#login').classList.remove('hidden'); $('#login-form [name=email]').focus(); }
+function showLogin() { $('#modal').open && $('#modal').close(); $('#login').classList.remove('hidden'); authView('login'); }
+function revealPassword(button, show) {
+  const input = button.previousElementSibling; input.type = show ? 'text' : 'password';
+  button.textContent = show ? 'Hide' : 'Show'; button.setAttribute('aria-pressed', String(show)); button.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+}
+function authView(name) {
+  document.querySelectorAll('[data-reveal]').forEach(b => revealPassword(b, false));
+  for (const [id, key] of [['#login-form', 'login'], ['#signup-form', 'signup'], ['#signup-done', 'done']]) $(id).classList.toggle('hidden', key !== name);
+  for (const form of ['#login-form', '#signup-form']) $(`${form} .form-error`).textContent = '';
+  if (name !== 'done') $(`#${name}-form [name=${name === 'login' ? 'email' : 'name'}]`).focus();
+}
+// Accounts and their access, for admins (Supabase mode). Pending sign-ups are counted on the Team access nav item.
+async function loadTeam() {
+  try { team = await api('team'); } catch (err) { team = { accounts: [], error: err.message }; }
+  const pending = team.accounts.filter(a => !a.is_admin && a.status !== 'denied').length;
+  $('#nav-team-count').textContent = pending; $('#nav-team-count').classList.toggle('hidden', !pending);
+  if (view === 'team') render();
+}
 async function start() {
   const session = await api('session');
   if (session.mode === 'supabase') {
@@ -52,6 +69,7 @@ async function start() {
     $('#mode-text').textContent = `${session.user ? `Signed in as ${session.user.email}. ` : ''}Records are stored in Supabase. Outreach is never sent from here.`;
     $('#sign-out').classList.toggle('hidden', !session.user);
     if (!session.user) return showLogin();
+    $('#nav-team').classList.remove('hidden'); loadTeam();
   }
   $('#login').classList.add('hidden'); await refresh();
 }
@@ -72,8 +90,9 @@ function render() {
   document.querySelectorAll('[data-list-count]').forEach(el => { el.textContent = (index.lists[el.dataset.listCount] || 0).toLocaleString(); });
   $('#nav-pending').textContent = state.metrics.pendingSuggestions;
   $('#nav-pending').classList.toggle('hidden', !state.metrics.pendingSuggestions);
+  if (view === 'team' && !team) { $('#content').innerHTML = empty('⚇', 'Loading team…', ''); loadTeam(); return; }
   if (view === 'playbook' && !playbook) { $('#content').innerHTML = empty('❏', 'Loading playbook…', ''); api('playbook').then(p => { playbook = p; render(); }).catch(err => toast(err.message)); return; }
-  $('#content').innerHTML = view === 'dashboard' ? dashboard() : view === 'pipeline' ? pipeline() : view === 'tasks' ? tasksView() : view === 'research' ? researchView() : view === 'playbook' ? playbookView() : view === 'list' ? listView() : selected ? detail() : organizations();
+  $('#content').innerHTML = view === 'dashboard' ? dashboard() : view === 'pipeline' ? pipeline() : view === 'tasks' ? tasksView() : view === 'research' ? researchView() : view === 'playbook' ? playbookView() : view === 'list' ? listView() : view === 'team' ? teamView() : selected ? detail() : organizations();
 }
 function dashboard() {
   const m = state.metrics, due = openTasks().slice(0, 5), recent = [...state.orgs].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 6);
@@ -168,6 +187,18 @@ function pipeline() {
 function tasksView() { const items = openTasks(); const done = state.tasks.filter(t => t.status === 'done').sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); return `<div class="page-head"><div><div class="eyebrow">ACTIONS / ${items.length} OPEN</div><h1>Follow-ups</h1><p>Keep dated next steps tied to each organization.</p></div></div><section class="panel"><div class="panel-head"><h3>Open actions</h3><small>${state.metrics.overdue} overdue</small></div>${items.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Due</th><th>Task</th><th>Organization</th><th>Log what happened</th><th></th></tr></thead><tbody>${items.map(t => `<tr><td><span class="date-badge ${t.dueDate < today() ? 'overdue' : ''}">${dateLabel(t.dueDate)}</span></td><td class="name-cell">${esc(t.title)}</td><td><button class="table-link" data-open-org="${t.orgId}">${esc(orgName(t.orgId))}</button></td><td>${index.orgs.get(t.orgId) ? stageBar(index.orgs.get(t.orgId)) : ''}</td><td><button class="button small" data-task-done="${t.id}">Mark done</button></td></tr>`).join('')}</tbody></table></div>` : empty('◷', 'All caught up', 'Add a follow-up from an organization record.')}</section>${done.length ? `<section class="panel" style="margin-top:17px"><div class="panel-head"><h3>Completed</h3></div><div class="panel-body">${done.slice(0, 10).map(t => `<div class="task-row"><div class="task-main"><b>${esc(t.title)}</b><small>${esc(orgName(t.orgId))}</small></div><button class="button small" data-task-open="${t.id}">Reopen</button></div>`).join('')}</div></section>` : ''}`; }
 function researchView() { const pending = state.suggestions.filter(s => s.status === 'pending'), reviewed = state.suggestions.filter(s => s.status !== 'pending'); return `<div class="page-head"><div><div class="eyebrow">EVIDENCE / HUMAN APPROVAL</div><h1>Research review</h1><p>Suggestions become leads only after a person checks the source and approves them.</p></div><button class="button primary" data-action="new-suggestion">+ Add suggestion</button></div><div class="notice">No research or mailbox integration is connected. This queue accepts manually entered, sourced suggestions and never sends outreach.</div><section class="panel"><div class="panel-head"><h3>Pending suggestions</h3><small>${pending.length} waiting</small></div><div class="panel-body">${pending.length ? pending.map(s => `<div class="review-card"><div style="display:flex;justify-content:space-between;gap:12px"><div><div class="eyebrow" style="margin:0">${esc(title(s.segment))} · ${esc(s.jurisdiction || 'Jurisdiction unrecorded')}</div><h3 style="margin:5px 0">${esc(s.name)}</h3></div><span class="date-badge">${dateLabel(s.researchDate)}</span></div><div class="review-evidence">${esc(s.evidence)}</div><p>Source: ${linkOrDash(s.sourceUrl)} · Basis: ${esc(title(s.contactBasis))}</p><div class="review-actions"><button class="button primary small" data-review="approve" data-id="${s.id}">Approve as lead</button><button class="button danger small" data-review="reject" data-id="${s.id}">Reject</button></div></div>`).join('') : empty('✧', 'No suggestions waiting', 'Add a sourced suggestion to review before it enters the pipeline.')}</div></section>${reviewed.length ? `<section class="panel" style="margin-top:17px"><div class="panel-head"><h3>Reviewed</h3></div><div class="panel-body">${reviewed.slice(0, 10).map(s => `<div class="task-row"><div class="task-main"><b>${esc(s.name)}</b><small>${dateLabel(s.reviewedAt)}</small></div>${badge(s.status)}</div>`).join('')}</div></section>` : ''}`; }
 const PURCHASE_STEPS = [{ stage: 'purchased', meaning: 'They placed an order (team order or direct purchase).', doneWhen: 'Follow up within a week of delivery.' }, { stage: 'purchase_follow_up', meaning: 'Checked in after the order: fit, feedback, photos, and a reorder or referral.', doneWhen: '—' }];
+function teamView() {
+  const accounts = team.accounts, me = team.me;
+  const pending = accounts.filter(a => !a.is_admin && a.status !== 'denied'), members = accounts.filter(a => a.is_admin), declined = accounts.filter(a => !a.is_admin && a.status === 'denied');
+  const who = a => `<b>${esc(a.name || a.email)}</b>${a.name ? `<span class="subline">${esc(a.email)}</span>` : ''}`;
+  const decide = (a, approve, text, cls = '') => `<button class="button small ${cls}" data-team-decide="${a.user_id}" data-approve="${approve}" data-name="${esc(a.name || a.email)}">${text}</button>`;
+  const table = (rows, columns, cells) => rows.length ? `<div class="table-wrap"><table class="data-table"><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(a => `<tr>${cells(a)}</tr>`).join('')}</tbody></table></div>` : '';
+  return `<div class="page-head"><div><div class="eyebrow">ADMIN / ACCESS</div><h1>Team access</h1><p>New accounts can't see any leads until an admin approves them here.</p></div><button class="button ghost" data-team-reload>Refresh</button></div>
+    ${team.error ? `<div class="notice red">${esc(team.error)}${/accounts|function/i.test(team.error) ? ' Run supabase/004_team_access.sql in the Supabase SQL Editor.' : ''}</div>` : ''}
+    <section class="panel"><div class="panel-head"><h3>Waiting for approval</h3><small>${pending.length} pending</small></div>${table(pending, ['Person', 'Signed up', 'Email', ''], a => `<td>${who(a)}</td><td>${dateLabel(a.created_at)}</td><td>${a.confirmed ? '<span class="badge interested">Confirmed</span>' : '<span class="badge paused">Not confirmed yet</span>'}</td><td class="row-actions">${decide(a, true, 'Approve', 'primary')}${decide(a, false, 'Decline', 'ghost')}</td>`) || empty('⚇', 'No one is waiting', 'New sign-ups appear here for approval.')}</section>
+    <section class="panel" style="margin-top:17px"><div class="panel-head"><h3>Team members</h3><small>${members.length} with access</small></div>${table(members, ['Person', 'Joined', ''], a => `<td>${who(a)}${a.user_id === me ? ' <span class="badge">You</span>' : ''}</td><td>${dateLabel(a.created_at)}</td><td class="row-actions">${a.user_id === me ? '' : decide(a, false, 'Remove access', 'ghost')}</td>`)}</section>
+    ${declined.length ? `<section class="panel" style="margin-top:17px"><div class="panel-head"><h3>Declined</h3></div>${table(declined, ['Person', 'Declined', ''], a => `<td>${who(a)}</td><td>${dateLabel(a.decided_at)}</td><td class="row-actions">${decide(a, true, 'Approve', '')}</td>`)}</section>` : ''}`;
+}
 function playbookView() {
   const p = playbook, steps = new Map([...p.dealSteps, ...PURCHASE_STEPS].map(s => [s.stage, s]));
   const tierCounts = t => { const items = state.orgs.filter(o => o.priority === t); return `${items.length.toLocaleString()} organizations · ${items.filter(o => o.stage === 'not_contacted').length.toLocaleString()} not contacted`; };
@@ -262,6 +293,16 @@ function importForm() { modal('Import organizations', `<p class="form-help">CSV 
 function reviewForm(s, action) { if (action === 'approve') { orgForm(s); $('#modal-form').dataset.kind = `approve:${s.id}`; $('#modal-content h2').textContent = 'Approve research suggestion'; $('#modal-form button[type=submit]').textContent = 'Approve as lead'; } else modal('Reject suggestion', `<p>Reject <b>${esc(s.name)}</b>? The suggestion remains in review history.</p>${formField('Review note', 'note', '', { textarea: true })}`, 'Reject suggestion', `reject:${s.id}`); }
 
 document.addEventListener('click', async e => {
+  const reveal = e.target.closest('[data-reveal]'); if (reveal) { revealPassword(reveal, reveal.getAttribute('aria-pressed') !== 'true'); reveal.previousElementSibling.focus(); return; }
+  const authSwitch = e.target.closest('[data-auth-view]'); if (authSwitch) { authView(authSwitch.dataset.authView); return; }
+  if (e.target.closest('[data-team-reload]')) { team = null; render(); return; }
+  const decision = e.target.closest('[data-team-decide]'); if (decision) {
+    const approve = decision.dataset.approve === 'true', name = decision.dataset.name;
+    if (!approve && !confirm(`${decision.textContent} for ${name}? They will no longer see any leads.`)) return;
+    decision.disabled = true;
+    try { await api(`team/${decision.dataset.teamDecide}`, 'POST', { approve }); toast(approve ? `${name} can now sign in` : `${name} has no access`); } catch (err) { toast(err.message); }
+    await loadTeam(); return;
+  }
   const act = e.target.closest('[data-advance]'); if (act) { act.disabled = true; await moveStage(act.dataset.advance, act.dataset.stage); return; }
   const chip = e.target.closest('[data-stage-chip]'); if (chip) { filter.stage = filter.stage === chip.dataset.stageChip ? '' : chip.dataset.stageChip; limit = PAGE; render(); return; }
   const nav = e.target.closest('[data-view]'); if (nav) { view = nav.dataset.view; selected = null; back = null; if (nav.dataset.list) { listKey = nav.dataset.list; listTab = ''; filter = { ...blankFilter(), sort: 'priority' }; limit = PAGE; } render(); window.scrollTo(0, 0); return; }
@@ -327,8 +368,19 @@ $('#modal').addEventListener('submit', async e => {
   } catch (err) { errEl.textContent = err.message; }
 });
 $('#login-form').addEventListener('submit', async e => {
-  e.preventDefault(); const form = e.target, errEl = form.querySelector('.form-error'), button = form.querySelector('button'); errEl.textContent = ''; button.disabled = true;
-  try { await api('login', 'POST', Object.fromEntries(new FormData(form))); form.reset(); await start(); } catch (err) { errEl.textContent = err.message; } finally { button.disabled = false; }
+  e.preventDefault(); const form = e.target, errEl = form.querySelector('.form-error'), button = form.querySelector('button[type=submit]'); errEl.textContent = ''; button.disabled = true;
+  try { await api('login', 'POST', Object.fromEntries(new FormData(form))); form.reset(); form.querySelectorAll('[data-reveal]').forEach(b => revealPassword(b, false)); await start(); } catch (err) { errEl.textContent = err.message; } finally { button.disabled = false; }
+});
+$('#signup-form').addEventListener('submit', async e => {
+  e.preventDefault(); const form = e.target, errEl = form.querySelector('.form-error'), button = form.querySelector('button[type=submit]'), values = Object.fromEntries(new FormData(form));
+  errEl.textContent = '';
+  if (values.password !== values.confirm) { errEl.textContent = 'The passwords do not match'; return; }
+  button.disabled = true;
+  try {
+    const { status } = await api('signup', 'POST', { name: values.name, email: values.email, password: values.password });
+    $('#signup-done-text').textContent = status === 'confirm_email' ? `We sent a confirmation link to ${values.email}. Open it, then an admin approves your account. You can sign in once you're approved.` : 'An admin needs to approve your account. You can sign in once you are approved.';
+    form.reset(); authView('done');
+  } catch (err) { errEl.textContent = err.message; } finally { button.disabled = false; }
 });
 try { await start(); } catch (err) { toast(err.message); }
 
