@@ -30,7 +30,7 @@ let index = { orgs: new Map(), contacts: new Map(), haystack: new Map(), stages:
 
 async function api(path, method = 'GET', data) {
   const res = await fetch(`/api/${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: data === undefined ? undefined : JSON.stringify(data) });
-  const body = await res.json();
+  const body = await res.json().catch(() => ({ error: `The server did not answer properly (${res.status} ${res.statusText}). If this is the hosted site, check the deployment's function logs.` }));
   if (res.status === 401 && !path.startsWith('login')) showLogin();
   if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
   return body;
@@ -382,5 +382,5 @@ $('#signup-form').addEventListener('submit', async e => {
     form.reset(); authView('done');
   } catch (err) { errEl.textContent = err.message; } finally { button.disabled = false; }
 });
-try { await start(); } catch (err) { toast(err.message); }
+try { await start(); } catch (err) { $('#content').innerHTML = empty('!', 'Could not load the workspace', esc(err.message)); }
 

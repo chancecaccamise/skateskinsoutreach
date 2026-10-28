@@ -46,7 +46,17 @@ The Supabase project is dedicated to Outreach, so the inquiry/design/checkout/or
 3. **Keys**: copy `.env.example` to `.env` and fill in `SUPABASE_URL` and the **publishable** key (the legacy name is "anon"). Never use the secret/`service_role` key. The app does not need it, and `.env` is Git ignored.
 4. Restart `npm start`. The console says which mode it is in.
 
-How it works: the browser only talks to the local server. The server signs in through Supabase Auth, keeps the session in HttpOnly cookies, and calls the Supabase REST API with the signed-in user's token, so RLS enforces admin-only access. API requests are handled one at a time, and only changed rows are written back. The server caches records for up to 2 minutes, so changes made elsewhere (another admin, the import script) appear within that time or on restart. Two people editing the same record within that window: the later save wins. The app never deletes rows. Existing `.local/` data is not migrated automatically.
+How it works: the browser only talks to the local server. The server signs in through Supabase Auth, keeps the session in HttpOnly cookies, and calls the Supabase REST API with the signed-in user's token, so RLS enforces admin-only access. API requests are handled one at a time, and only changed rows are written back. The server keeps a cached copy of the records and checks the newest change in each table on every request, so changes made elsewhere (another admin, another server instance, the import script) show up right away. If two people save the same record at the same moment, the later save wins. The app never deletes rows. Existing `.local/` data is not migrated automatically.
+
+## Deploying on Vercel
+
+The same code runs as a Vercel function: `api/index.mjs` exports the request handler from `server.mjs`, `vercel.json` rewrites `/api/*` to it, and Vercel serves `public/` as static files with the same security headers.
+
+1. Import the GitHub repo in Vercel (framework preset: Other, no build command).
+2. In the project's Settings → Environment Variables, add `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (the publishable key, not the secret one), then redeploy. Local mode is not available on Vercel because its filesystem is read-only.
+3. In Supabase → Authentication → URL Configuration, set Site URL to the Vercel address (e.g. `https://your-project.vercel.app`) so sign-up confirmation links land on the site.
+
+Sign-in cookies are marked `Secure` over HTTPS, writes are accepted only from the site's own pages, and responses are gzipped (the full lead list is several MB of JSON; Vercel limits a response to 4.5 MB). Vercel also limits a request to 4.5 MB: the four lead files together fit, but larger files should be imported one at a time, which gives the same result.
 
 ## Importing the lead spreadsheets
 

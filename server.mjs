@@ -2,9 +2,10 @@ import http from 'node:http';
 import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync } from 'node:fs';
 import { join, extname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { gzipSync } from 'node:zlib';
 import { ACTION_LABELS, AUTO_TASK_TITLES, BASIS, FOLLOW_UPS, LABELS, PRIORITIES, SEGMENTS, STAGES, TOUCH_STAGES, addDays, nextStages, clean, contactKey, metrics, norm, orgKey, parseCsv, stageFrom, validEmail, validateContact, validateOrg, isoDate } from './lib/outreach.mjs';
-import { access, auth, checkImportSchema, claims, insertNew, loadAll, saveChanges, supabaseConfig } from './lib/supabase.mjs';
+import { access, auth, checkImportSchema, claims, fingerprint, insertNew, loadAll, saveChanges, supabaseConfig } from './lib/supabase.mjs';
 import { applyUpdates, planImport, sourcesFromFiles, summarize } from './lib/lead-import.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
@@ -15,27 +16,38 @@ const dataPath = join(local, 'outreach.json');
 const port = Number(process.env.PORT || 4173);
 const host = '127.0.0.1';
 const empty = () => ({ version: 1, orgs: [], contacts: [], activities: [], tasks: [], suggestions: [] });
-const playbook = JSON.parse(readFileSync(join(root, 'lib', 'playbook.json'), 'utf8'));
-// Local mode keeps one in-memory db. Supabase mode keeps a cached copy that is reloaded when stale or after a failed save,
-// so edits made elsewhere (another admin, the import script) show up within CACHE_MS.
-const CACHE_MS = 120_000;
+const playbook = JSON.parse(readFileSync(new URL('./lib/playbook.json', import.meta.url), 'utf8'));
+// On Vercel the filesystem is read-only, so local mode is not available there.
+const missingSupabase = !cfg && process.env.VERCEL ? 'Supabase is not configured. Add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in the Vercel project settings, then redeploy.' : '';
+// Local mode keeps one in-memory db. Supabase mode keeps a cached copy and reuses it only while the database's newest change
+// (its fingerprint) is unchanged, so edits from another admin, another server instance, or the import script show up at once.
 let db = null, ctx = null, cache = null;
-if (!cfg) {
+if (!cfg && !missingSupabase) {
   mkdirSync(local, { recursive: true, mode: 0o700 });
   db = existsSync(dataPath) ? JSON.parse(readFileSync(dataPath, 'utf8')) : empty();
   for (const key of ['orgs', 'contacts', 'activities', 'tasks', 'suggestions']) db[key] ||= [];
   for (const org of db.orgs) { org.stage = stageFrom(org.stage) || 'not_contacted'; if (org.location && !org.city) org.city = org.location; delete org.location; }
 }
 async function save() {
-  if (cfg) { try { return await saveChanges(cfg, ctx.token, ctx.user.id, db); } catch (e) { cache = null; throw e; } }
+  if (cfg) {
+    try { await saveChanges(cfg, ctx.token, ctx.user.id, db); } catch (e) { cache = null; throw e; }
+    if (cache) cache.print = await fingerprint(cfg, ctx.token).catch(() => null); return;
+  }
   const tmp = `${dataPath}.tmp`; writeFileSync(tmp, JSON.stringify(db, null, 2), { mode: 0o600 }); renameSync(tmp, dataPath);
 }
 function id() { return randomUUID(); }
 function now() { return new Date().toISOString(); }
 function fail(message, status = 400) { const e = new Error(message); e.status = status; throw e; }
 const securityHeaders = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'" };
-function send(res, status, data, headers = {}) { res.writeHead(status, { ...securityHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers }); res.end(JSON.stringify(data)); }
+// Responses are gzipped when the browser accepts it: the full lead list is several MB as JSON (Vercel caps responses at 4.5 MB).
+function send(res, status, data, headers = {}) {
+  let out = JSON.stringify(data); const zip = res.gzip && out.length > 1024;
+  if (zip) out = gzipSync(out);
+  res.writeHead(status, { ...securityHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', Vary: 'Accept-Encoding', ...(zip ? { 'Content-Encoding': 'gzip' } : {}), ...headers }); res.end(out);
+}
 async function body(req, max = 2_000_000) {
+  // Vercel may have parsed the body already.
+  if ('body' in req && req.body != null) { if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body; const text = String(req.body); if (text.length > max) fail('Request is too large', 413); try { return JSON.parse(text || '{}'); } catch { fail('Invalid JSON'); } }
   let text = '';
   for await (const chunk of req) { text += chunk; if (text.length > max) fail('Request is too large', 413); }
   try { return JSON.parse(text || '{}'); } catch { fail('Invalid JSON'); }
@@ -101,10 +113,10 @@ function serveStatic(req, res) {
   res.end(readFileSync(file));
 }
 
-const cookieAttrs = 'Path=/; HttpOnly; SameSite=Strict';
+const cookieAttrs = res => `Path=/; HttpOnly; SameSite=Strict${res.secure ? '; Secure' : ''}`;
 function cookies(req) { return Object.fromEntries((req.headers.cookie || '').split(';').map(c => c.trim().split('=')).filter(([k]) => k).map(([k, ...v]) => [k, decodeURIComponent(v.join('='))])); }
-function setSession(res, s) { res.setHeader('Set-Cookie', [`ss_at=${s.access_token}; ${cookieAttrs}; Max-Age=${s.expires_in}`, `ss_rt=${s.refresh_token}; ${cookieAttrs}; Max-Age=${60 * 60 * 24 * 30}`]); }
-function clearSession(res) { res.setHeader('Set-Cookie', ['ss_at', 'ss_rt'].map(name => `${name}=; ${cookieAttrs}; Max-Age=0`)); }
+function setSession(res, s) { res.setHeader('Set-Cookie', [`ss_at=${s.access_token}; ${cookieAttrs(res)}; Max-Age=${s.expires_in}`, `ss_rt=${s.refresh_token}; ${cookieAttrs(res)}; Max-Age=${60 * 60 * 24 * 30}`]); }
+function clearSession(res) { res.setHeader('Set-Cookie', ['ss_at', 'ss_rt'].map(name => `${name}=; ${cookieAttrs(res)}; Max-Age=0`)); }
 function sessionFrom(token) { const c = claims(token); return { token, user: { id: c.sub, email: c.email } }; }
 async function session(req, res) {
   const c = cookies(req); if (!c.ss_rt) fail('Sign in required', 401);
@@ -154,22 +166,30 @@ async function authRoute(req, res, url) {
 let queue = Promise.resolve();
 function exclusive(fn) { const run = queue.then(fn, fn); queue = run.catch(() => {}); return run; }
 
-const server = http.createServer(async (req, res) => {
+// One handler for both the local server and the Vercel function (api/index.mjs). On Vercel, vercel.json rewrites
+// /api/<path> to /api?__path=<path>, and the static files in public/ are served by Vercel itself.
+export async function handler(req, res) {
   try {
-    const url = new URL(req.url, `http://${host}:${port}`);
+    const proto = String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim(), self = `${proto}://${req.headers.host}`;
+    res.secure = proto === 'https'; res.gzip = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+    const url = new URL(req.url, self), forwarded = url.searchParams.get('__path');
+    if (url.pathname === '/api' && forwarded !== null) { url.pathname = `/api/${forwarded}`; url.searchParams.delete('__path'); }
     if (!url.pathname.startsWith('/api/')) return serveStatic(req, res);
-    if (req.method !== 'GET' && req.headers.origin && req.headers.origin !== `http://${host}:${port}`) fail('Invalid origin', 403);
+    if (missingSupabase) fail(missingSupabase, 503);
+    // Writes must come from this site's own pages.
+    if (req.method !== 'GET' && req.headers.origin && req.headers.origin !== self) fail('Invalid origin', 403);
     if (['/api/session', '/api/login', '/api/signup', '/api/logout'].includes(url.pathname)) return await authRoute(req, res, url);
     await exclusive(async () => {
       if (cfg) {
         ctx = await session(req, res);
-        if (!cache || Date.now() - cache.at > CACHE_MS) cache = { db: await loadAll(cfg, ctx.token), at: Date.now() };
+        const print = await fingerprint(cfg, ctx.token);
+        if (!cache || cache.print !== print) cache = { db: await loadAll(cfg, ctx.token), print };
         db = cache.db;
       }
       await route(req, res, url);
     });
   } catch (e) { send(res, e.status || 500, { error: e.status ? e.message : 'Internal server error' }); if (!e.status) console.error(e); }
-});
+}
 async function route(req, res, url) {
   if (url.pathname === '/api/state' && req.method === 'GET') return send(res, 200, { ...db, metrics: metrics(db), stages: STAGES, segments: SEGMENTS, bases: BASIS, priorities: PRIORITIES, labels: LABELS, flow });
   if (url.pathname === '/api/playbook' && req.method === 'GET') return send(res, 200, playbook);
@@ -255,7 +275,8 @@ async function route(req, res, url) {
   }
   fail('API route not found', 404);
 }
-server.listen(port, host, () => {
+// Listen only when run directly (npm start); Vercel imports the handler instead.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) http.createServer(handler).listen(port, host, () => {
   console.log(`Outreach local admin: http://${host}:${port}`);
   console.log(cfg ? `Data is stored in Supabase (${new URL(cfg.url).host}); sign-in required. No outbound sending.` : 'Data stays in .local/; no Supabase connection or outbound sending.');
 });
