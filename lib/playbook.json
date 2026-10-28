@@ -1,0 +1,269 @@
+{
+  "source": "SkateSkins Outreach Plan & Rink List.xlsx",
+  "built": "Built Oct 12, 2026. Venue tabs come from OpenStreetMap (public map data, ODbL licence) plus the existing SkateSkins prospect list.",
+  "plan": "Start at home and go out in rings. Walk into every Tier A place within 100 miles of Buffalo with a wrapped skate in hand. Phone and email the 300-mile ring and drive out for the ones that say yes. Ship counter kits to hockey shops in the big hockey states and provinces, and onboard them on a video call. Pitch the buying groups (Source for Sports, Sports Excellence, NBS, Hockey Dealers Association) once the Buffalo test has numbers, since one yes there reaches hundreds of shops. Europe waits until North America runs smoothly. Then go through a distributor or the hockey-country shops (Finland, Sweden, Czechia, Switzerland, Germany) by email.",
+  "tiers": [
+    {
+      "tier": "A",
+      "text": "go now. Indoor rinks, arenas and hockey shops within 100 miles of Buffalo, plus hockey shops within 300 miles."
+    },
+    {
+      "tier": "B",
+      "text": "next. Rinks within 300 miles, and hockey shops in hotbed states and provinces."
+    },
+    {
+      "tier": "C",
+      "text": "later. Rinks in hotbed areas and the rest of North America, plus sports stores that may not carry hockey."
+    },
+    {
+      "tier": "D",
+      "text": "low value. Outdoor, seasonal or park rinks. Good for a holiday pop-up, not a permanent display."
+    },
+    {
+      "tier": "E",
+      "text": "Europe. Hold for phase 3."
+    }
+  ],
+  "dataNotes": [
+    "OpenStreetMap is the most complete free list of rinks, but it isn't perfect. Some rinks are missing, some details are old, and the indoor/outdoor call is a best guess from names and tags. Rows marked 'Rink (indoor or outdoor unclear)' need a quick look on Google Maps.",
+    "Places with no name on the map were dropped, because you can't contact an unnamed rink. Skateboard and surf shops were filtered out. Duplicate map entries for the same building were merged.",
+    "Phone, website and email come straight from the map where someone entered them. Expect about 1 in 4 rinks to have a website on file, and very few emails. Verify before relying on them.",
+    "NOT YET INCLUDED (map server went offline mid-pull, add later): Quebec, British Columbia, Nunavut, California, Georgia, Delaware; Sweden, Germany, United Kingdom, Slovakia, Norway, France, Poland, Italy, Spain, Netherlands, Ukraine, Serbia and a few small Balkan states. Quebec, BC, Sweden and Germany matter. For Canadian shops in those provinces, check Existing Leads, which already covers chain and independent shops there.",
+    "Chain stores (Pure Hockey, Source for Sports, Pro Hockey Life, etc.) appear here as individual locations. Local managers can host a counter kit only with HQ's OK. Log their interest and use it in the HQ pitch."
+  ],
+  "zones": [
+    {
+      "zone": "1 · Home (WNY, ≤100 mi of Buffalo)",
+      "approach": "Walk in with a wrapped skate. Buffalo test sites.",
+      "when": "Now"
+    },
+    {
+      "zone": "2 · Drive radius (≤300 mi)",
+      "approach": "Phone and email, then a day trip to install. Covers southern Ontario/GTA, the rest of upstate NY, NW PA, NE Ohio.",
+      "when": "Months 2–6"
+    },
+    {
+      "zone": "3 · Hockey hotbed (ship a kit)",
+      "approach": "Ship a counter kit, onboard on video. MN, MI, MA, IL, PA, NJ, CT, WI, OH, CO, QC, AB, BC and others.",
+      "when": "Months 4–9"
+    },
+    {
+      "zone": "4 · Rest of North America",
+      "approach": "Opportunistic. Inbound leads, chain HQ deals.",
+      "when": "Later"
+    },
+    {
+      "zone": "5 · Europe – hockey country",
+      "approach": "FI, SE, CZ, CH, DE, SK, LV, AT, NO, DK, GB, SI, FR. Email and distributor.",
+      "when": "Phase 3"
+    },
+    {
+      "zone": "6 · Europe – other",
+      "approach": "Skip unless inbound.",
+      "when": "Later"
+    }
+  ],
+  "places": [
+    {
+      "place": "Rink pro shop",
+      "whoDecides": "Pro shop owner/manager. Often a separate business that leases space from the rink.",
+      "howToFind": "Walk in. Ask at the counter who owns the shop. Check the rink website's 'Pro Shop' page, Google Maps listing and Instagram.",
+      "bestWayIn": "Walk in with a wrapped skate (best). Phone second. Email last.",
+      "offer": "Counter kit + fitting mat. Team Partner add-on, since they know every local team.",
+      "followUp": "Visit, then a thank-you text that day. Call again in 3 days. Drop by after 1 week."
+    },
+    {
+      "place": "Rink / arena (municipal or private, no pro shop)",
+      "whoDecides": "General manager or facility manager. City-run rinks: recreation supervisor. Private: owner.",
+      "howToFind": "Rink website 'Contact' or 'Staff' page. City parks & rec staff directory. Call the front desk and ask who approves lobby displays and sponsors.",
+      "bestWayIn": "Phone the front desk, then email the manager. Visit during a youth practice.",
+      "offer": "Lobby counter kit + mat at the lace-up benches. Offer the house league a team deal.",
+      "followUp": "Email, call after 2 days, visit after 1 week. City rinks move slowly, so allow 3–6 weeks."
+    },
+    {
+      "place": "Independent hockey shop",
+      "whoDecides": "Owner (usually on the floor).",
+      "howToFind": "Google Maps listing and website 'About' page. Instagram bio. LinkedIn for the owner's name.",
+      "bestWayIn": "Walk in (zones 1–2). Phone + Instagram DM + email (zone 3).",
+      "offer": "Slatwall panel, or counter kit + consignment stock. Team Partner if they do team sales.",
+      "followUp": "Call, then DM, then email with a photo of a display. Ship a sample skin if they're interested."
+    },
+    {
+      "place": "Chain store location (Pure Hockey, Source for Sports, Pro Hockey Life, Sports Excellence, etc.)",
+      "whoDecides": "Store manager for interest only. HQ buying/vendor team for a real yes.",
+      "howToFind": "Store locator page for the manager. HQ vendor-inquiry email or vendor portal (see Existing Leads: 'Chain HQ / Buyer' and 'Buying Group').",
+      "bestWayIn": "Visit the local store to get manager buy-in. Formal pitch to HQ or the buying group with pilot results.",
+      "offer": "Pilot at 1–3 stores if HQ allows it, then a full vendor program.",
+      "followUp": "Log the manager's name in Notes. Don't push. HQ approves this, not the store."
+    },
+    {
+      "place": "Buying group (Source for Sports, Sports Excellence, NBS, Hockey Dealers Association)",
+      "whoDecides": "Vendor relations / category manager.",
+      "howToFind": "Already in Existing Leads (segment 'Buying Group'), with vendor-inquiry emails for most.",
+      "bestWayIn": "Email with the pilot one-pager, then a call. Ask about their next buying show.",
+      "offer": "Program offered to all their member stores at once.",
+      "followUp": "Matt owns these. Follow up every 2 weeks. Plan around their buying show calendar."
+    },
+    {
+      "place": "NHL / AHL team store",
+      "whoDecides": "Retail operations manager / team store manager. Charity foundation for event skins.",
+      "howToFind": "Existing Leads has 'Team Store' and 'Retail Operations' contacts for many teams. Otherwise check the team's front-office directory or LinkedIn.",
+      "bestWayIn": "Warm intro first (HFC / Flyers relationship, Sabres connections). Then email.",
+      "offer": "Licensed event-night skin sold in the team store, with a cut to the team charity.",
+      "followUp": "Matt owns these. Time the pitch 3–4 months ahead of a theme night."
+    },
+    {
+      "place": "Youth hockey club / association (for Team of the Month)",
+      "whoDecides": "Club president, equipment coordinator, or team manager for the age group.",
+      "howToFind": "Club website 'Board' page. Rink bulletin board. Parents you already know.",
+      "bestWayIn": "Email the president. Copy the team manager.",
+      "offer": "Permission to use their logo on the display + a team-order quote.",
+      "followUp": "If no reply in a week, ask the rink or pro shop to introduce you."
+    },
+    {
+      "place": "Europe (any type)",
+      "whoDecides": "Same roles. Email in English first. Most hockey shops in the Nordics, Switzerland and Germany will answer in English.",
+      "howToFind": "Map website/email. Club and federation sites. Eisbären Berlin is an existing reference.",
+      "bestWayIn": "Email + Instagram DM. No visits.",
+      "offer": "A distributor or a few flagship hockey shops per country. Shipping times make single displays hard to support.",
+      "followUp": "Phase 3. Collect interest only for now."
+    }
+  ],
+  "findingContact": [
+    "1. Google: \"<rink name> <city>\". The Maps listing usually has a phone number and website.",
+    "2. On the website, look for Contact, Staff, About, Pro Shop and Rentals/Advertising pages. Advertising pages often name the person who approves sponsors.",
+    "3. Instagram and Facebook pages. Shop owners often answer DMs faster than email.",
+    "4. Call the front desk: \"Who would I talk to about putting a small display in the lobby or pro shop?\" Write down the name.",
+    "5. Log the name, title, email and phone in the yellow columns. Set Status to 'Contacted' once you've reached out."
+  ],
+  "scriptsNote": "Swap the <angle brackets>. Rates and discount are placeholders until Matt and Toni sign off on them.",
+  "scripts": [
+    {
+      "name": "Walk-in (pro shop / hockey shop)",
+      "when": "In person, with a wrapped skate",
+      "text": "Hi, I'm <name> with SkateSkins. We're out of Buffalo. We make custom wraps for hockey skates, like this one. It's peel-and-stick vinyl, fits any brand, goes on in under a minute and comes off clean.\n\nYou can't stock custom, so we don't ask you to. We give you a free display, a skate in <local club>'s colors, and a QR code. When someone orders through it, or a team orders through you, you get a cut. No cost, no inventory, no rent.\n\nWhere do people wait the longest in here? The sharpening counter?"
+    },
+    {
+      "name": "Phone (rink front desk)",
+      "when": "Goal: get the decision-maker's name",
+      "text": "Hi, this is <name> from SkateSkins in Buffalo. We do custom skate wraps and we're setting up free displays in rinks around <area>. Who would I talk to about putting a small counter display in the lobby or pro shop? … Great, what's the best email for <them>?"
+    },
+    {
+      "name": "Cold email (rink manager / shop owner)",
+      "when": "Subject: Free display for <rink/shop>, and you get paid on every order",
+      "text": "Hi <first name>,\n\nI'm <name> with SkateSkins. We make custom vinyl wraps for hockey skates in Buffalo, NY. They're peel-and-stick, fit every brand, and come off clean. Teams from mites to the AHL wear them, and we did the NHL Hockey Fights Cancer skin with the Flyers.\n\nWe're putting free displays in a few <area> rinks and shops this season:\n• A counter display with a skate wrapped in a local team's colors\n• A QR code that's unique to <rink/shop>\n• You earn <15%> of every order that comes through your code, and <10%> of team orders\n\nNo cost, no inventory, no rent. Could I drop one by next week? It takes 10 minutes to set up.\n\n<name>\n<phone>\nskateskinsofficial.com"
+    },
+    {
+      "name": "Instagram / Facebook DM",
+      "when": "Short. Attach a photo of a wrapped skate.",
+      "text": "Hey <shop>! We're SkateSkins out of Buffalo. We make custom skate wraps (pic). We're setting up free displays in hockey shops and you'd earn a cut of every order through your QR code. No cost or inventory. Could I send you the details?"
+    },
+    {
+      "name": "Follow-up 1 (3 days later)",
+      "when": "Reply on the same email thread",
+      "text": "Hi <first name>, just checking you saw this. Happy to bring a wrapped skate by so you can see it in person. Does <day> work?"
+    },
+    {
+      "name": "Follow-up 2 (1 week later)",
+      "when": "Add something new: a photo or a local name",
+      "text": "Hi <first name>, quick update. <Nearby rink/shop> just put up a SkateSkins display with a <club> skate on it. Glad to set one up for you too, or I'll leave you alone. Just let me know."
+    },
+    {
+      "name": "Club pitch (Team of the Month)",
+      "when": "To the youth club president / team manager",
+      "text": "Hi <first name>,\n\nWe'd like to feature the <club> <age group> on our SkateSkins display at <rink/shop> next month: a real skate wrapped in your colors, logo and a number. Free, and parents love it.\n\nCould we use your logo for it? And if you've ever wondered what a full roster would cost, team pairs start around $26–38 depending on the number of players, with each player's number and name. Some clubs sell the logo space on the skin to a local sponsor to cover the cost.\n\n<name>"
+    },
+    {
+      "name": "Buying group / chain HQ",
+      "when": "Matt sends this after the pilot. Attach the one-pager.",
+      "text": "Hi <first name>,\n\nSkateSkins makes custom skate wraps in Buffalo, NY. They're universal fit, go on in under a minute, and we've worked with the NHL's Hockey Fights Cancer program and AHL clubs. This fall we ran a no-cost display program in <N> rinks and shops around Buffalo. Each location had its own QR code and earned a share of every order.\n\nResults: <scans>, <orders>, <team orders>, <avg payout per store>.\n\nWe'd like to offer the same program to <group>'s member stores. Could we get 20 minutes before your next buying show?\n\nMatt Keeler\nSkateSkins"
+    }
+  ],
+  "dealSteps": [
+    {
+      "stage": "not_contacted",
+      "label": "Not contacted",
+      "meaning": "Default.",
+      "doneWhen": "—"
+    },
+    {
+      "stage": "finding_contact",
+      "label": "Finding contact",
+      "meaning": "You're working out who decides.",
+      "doneWhen": "You have a name plus an email or phone."
+    },
+    {
+      "stage": "contacted",
+      "label": "Contacted",
+      "meaning": "First touch made: visit, call, email or DM.",
+      "doneWhen": "They reply, or you've done 2 follow-ups."
+    },
+    {
+      "stage": "follow_up_1",
+      "label": "Follow-up 1",
+      "meaning": "Second touch, 3 days later.",
+      "doneWhen": "Reply, or move to Follow-up 2."
+    },
+    {
+      "stage": "follow_up_2",
+      "label": "Follow-up 2",
+      "meaning": "Third touch, 1 week later. Last try for now.",
+      "doneWhen": "No reply: set to Paused with a date in Next step (try again in 60 days)."
+    },
+    {
+      "stage": "visit_booked",
+      "label": "Visit / call booked",
+      "meaning": "A time is set to show the skate or talk it through.",
+      "doneWhen": "The meeting happened."
+    },
+    {
+      "stage": "interested",
+      "label": "Interested",
+      "meaning": "They want it. Agree on kit size, placement and which local team goes on the display.",
+      "doneWhen": "Agreement sent."
+    },
+    {
+      "stage": "agreement_signed",
+      "label": "Agreement signed",
+      "meaning": "The one-page partner agreement is signed. Set up their store code and QR in the affiliate app.",
+      "doneWhen": "Kit built and delivered."
+    },
+    {
+      "stage": "display_installed",
+      "label": "Display installed",
+      "meaning": "Kit is up, staff card is in place, photo taken for socials.",
+      "doneWhen": "First order through their code."
+    },
+    {
+      "stage": "live",
+      "label": "Live – producing",
+      "meaning": "Orders coming in. Check in weekly and swap the team skate monthly.",
+      "doneWhen": "—"
+    },
+    {
+      "stage": "paused",
+      "label": "Paused",
+      "meaning": "Not now. Write the date to try again in Next step.",
+      "doneWhen": "—"
+    },
+    {
+      "stage": "not_a_fit",
+      "label": "Not a fit",
+      "meaning": "Closed, wrong type of place, or a firm no. Say why in Notes.",
+      "doneWhen": "—"
+    }
+  ],
+  "dealIncludes": [
+    "1. Partner agreement (1 page): revenue share %, consignment terms if any, 90-day attribution, monthly payout, either side can end it with 30 days' notice, SkateSkins owns the display.",
+    "2. Their store code + QR link set up in the affiliate app before the install, so the first scan counts.",
+    "3. Kit: S, M or L, a fitting mat, and a staff card. Decide the local team for the display and get the club's OK in writing (an email is fine).",
+    "4. Install photo for our socials, and tag the shop. Partners like the free promotion.",
+    "5. Monthly statement email with scans, orders and earnings. This is what keeps stores in the program."
+  ],
+  "weeklyTargets": [
+    "15–20 new venues contacted (visits count double)",
+    "5 follow-ups a day",
+    "2 installs a week once the pilot starts",
+    "Update Status the same day"
+  ]
+}

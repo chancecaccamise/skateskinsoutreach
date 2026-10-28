@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c0f14">
+  <title>Outreach · SkateSkins Admin</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <aside class="sidebar">
+      <div class="side-brand"><b class="wordmark">SkateSkins<sup>®</sup></b><span class="brand-mini" aria-hidden="true">SS</span><small>ADMIN · OUTREACH</small></div>
+      <div class="side-section-label">WORKSPACE</div>
+      <nav aria-label="Outreach navigation">
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">◫</span> Overview</button>
+        <button class="nav-item" data-view="pipeline"><span class="nav-icon">▥</span> Pipeline</button>
+        <button class="nav-item" data-view="organizations"><span class="nav-icon">◈</span> Organizations</button>
+        <button class="nav-item" data-view="tasks"><span class="nav-icon">◷</span> Follow-ups</button>
+        <button class="nav-item" data-view="research"><span class="nav-icon">✧</span> Research review <span id="nav-pending" class="nav-count hidden"></span></button>
+        <button class="nav-item" data-view="playbook"><span class="nav-icon">❏</span> Playbook</button>
+      </nav>
+      <div class="side-section-label side-section-gap">LEAD LISTS</div>
+      <nav aria-label="Lead lists">
+        <button class="nav-item" data-view="list" data-list="prospects"><span class="nav-icon">☰</span> Prospect list <span class="nav-total" data-list-count="prospects"></span></button>
+        <button class="nav-item" data-view="list" data-list="venuesNA"><span class="nav-icon">⌂</span> Venues – NA <span class="nav-total" data-list-count="venuesNA"></span></button>
+        <button class="nav-item" data-view="list" data-list="venuesEU"><span class="nav-icon">◎</span> Venues – Europe <span class="nav-total" data-list-count="venuesEU"></span></button>
+        <button class="nav-item" data-view="list" data-list="customers"><span class="nav-icon">★</span> Klaviyo customers <span class="nav-total" data-list-count="customers"></span></button>
+      </nav>
+      <div class="side-spacer"></div>
+      <div class="sidebar-note"><span class="status-dot"></span><b id="mode-title">Local workspace</b><p id="mode-text">Research and records stay on this computer. Outreach is never sent from here.</p></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div class="breadcrumb">ADMIN <span>/</span> OUTREACH <span>/</span> <strong id="crumb">OVERVIEW</strong></div><div class="top-actions"><span class="local-badge"><i></i> <span id="mode-badge">LOCAL MODE</span></span><button class="button ghost" data-action="import">Import CSV</button><button class="button primary" data-action="new-org">+ Add lead</button><button id="sign-out" class="button ghost hidden" data-action="sign-out">Sign out</button></div></header>
+      <div id="content" class="content"></div>
+    </main>
+  </div>
+  <section id="login" class="login hidden" aria-labelledby="login-title">
+    <form id="login-form" class="login-card">
+      <b class="wordmark">SkateSkins<sup>®</sup></b>
+      <div class="eyebrow">ADMIN / OUTREACH</div>
+      <h1 id="login-title">Sign in</h1>
+      <label class="full-label">Email<input name="email" type="email" autocomplete="username" required></label>
+      <label class="full-label">Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <div class="form-error" role="alert"></div>
+      <button class="button primary" type="submit">Sign in</button>
+    </form>
+  </section>
+  <dialog id="modal"><div id="modal-content"></div></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
